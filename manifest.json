@@ -1,19 +1,16 @@
 {
 	"files": {
 		"README.md": "8b1704eff4c6f1989542d77d59666e28bfda029392946c5688d88af94cced028",
-		"index.js": "52da9eb99a6fddee31105920663c7bbd1101d493f285af2f9684ed7a984e2214",
+		"index.js": "57e8472449f0eb606187fd45189dcb40016eac4f5ba97dfa483b7116769c3dfc",
 		"module.json": "c40095006cfede1be501b2c0204dd2d778cd963dc0cb26e33dc3c8a839123fab"
 	},
 	"defs": {
-		"C_GACHA_CANCEL": 1,
-		"C_GACHA_TRY": [1,2],
+		"C_GACHA_TRY": 1,
 		"C_PLAYER_LOCATION": 5,
 		"C_USE_ITEM": 3,
-		"S_CANCEL_CONTRACT": 1,
-		"S_GACHA_END": "raw",
-		"S_GACHA_START": "raw",
-		"S_REQUEST_CONTRACT": 1,
+		"S_GACHA_END": 1,
+		"S_GACHA_START": 1,
 		"S_SYSTEM_MESSAGE": 1,
-		"S_SYSTEM_MESSAGE_LOOT_ITEM": "raw"
+		"S_SYSTEM_MESSAGE_LOOT_ITEM": 1
 	}
 }

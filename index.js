@@ -6,7 +6,6 @@ module.exports = function boxOpener(dispatch){
 		enabled = false,
 		boxEvent = null,
 		gacha_detected = false,
-		gacha_contract = 0,
 		isLooting = false,
 		location = null,
 		timer = null,
@@ -15,8 +14,8 @@ module.exports = function boxOpener(dispatch){
 		statOpened = 0,
 		statUsed = 0,
 		statStarted = null,
-		scanning = false/*,
-		inventory = null*/;
+		scanning = false,
+		inventory = null;
 		
 	command.add('box', () => {
 		if(!enabled && !scanning)
@@ -95,7 +94,6 @@ module.exports = function boxOpener(dispatch){
 		});*/
 		
 		hook('C_USE_ITEM', 3, event =>{
-			if(gacha_detected) return false; // Prevent spaming right click on gacha-type box while its already opening.
 			if(!scanning) return
 		
 			if(scanning){
@@ -107,90 +105,66 @@ module.exports = function boxOpener(dispatch){
 				let d = new Date();
 				statStarted = d.getTime();
 				enabled = true;
-				timer = dispatch.setTimeout(openBox,delay);
-				//return true; // for consistency of sent data
+				timer = setTimeout(openBox,delay);
+				return true; // for consistency of sent data
 			}
 		});
 		
-		hook('S_SYSTEM_MESSAGE_LOOT_ITEM', 'raw', () => {
+		hook('S_SYSTEM_MESSAGE_LOOT_ITEM', 1, event => {
 			if(!gacha_detected && !isLooting && boxEvent)
 			{
 				isLooting = true;
+				statOpened++;
 				if(!useDelay)
 				{
-					dispatch.clearTimeout(timer);
+					clearTimeout(timer);
 					openBox();
 				}
 			}
 		});
 		
-		hook('S_GACHA_END', 'raw', () => {
-			if(boxEvent && gacha_detected)
+		hook('S_GACHA_END', 1, event => {
+			if(boxEvent)
 			{
-				dispatch.clearTimeout(timer);
-				if(useDelay) timer = dispatch.setTimeout(openBox,delay);
-				else process.nextTick(openBox);
+				statOpened++;
+				if(!useDelay)
+				{
+					clearTimeout(timer);
+					openBox();
+				}
 			}
 		});
 		
 		hook('S_SYSTEM_MESSAGE', 1, event => {
-			const msg = dispatch.parseSystemMessage(event.message).id;
-			if(['SMT_ITEM_MIX_NEED_METERIAL', 'SMT_CANT_CONVERT_NOW', 'SMT_GACHA_NO_MORE_ITEM_SHORT', 'SMT_NOTI_LEFT_LIMITED_GACHA_ITEM', 'SMT_GACHA_CANCEL', 'SMT_COMMON_NO_MORE_ITEM_TO_USE'].includes(msg))
+			const msg = dispatch.parseSystemMessage(event.message);
+			if(msg.id === 'SMT_ITEM_MIX_NEED_METERIAL' || msg.id === 'SMT_CANT_CONVERT_NOW')
 			{
 				command.message("Box can not be opened anymore, stopping");
 				stop();
 			}
-		});
+        });
 		
-		hook('S_REQUEST_CONTRACT', 1, event => {
-			if(event.type !== 53) return;
-			dispatch.hookOnce('S_GACHA_START', 'raw', () => {
-				gacha_detected = true;
-				gacha_contract = event.id;
-				openBox();
-				return false;
+		hook('S_GACHA_START', 1, event => {
+			gacha_detected = true;
+			dispatch.toServer('C_GACHA_TRY', 1,{
+				id:event.id
 			})
-			return false;
-		});
-
-		hook('S_CANCEL_CONTRACT', 1, event => {
-			if (!gacha_detected || event.type !== 53) return;
-			gacha_contract = 0;
-			stop();
-		});
+        });
+			
 	}
 	
 	function openBox() 
 	{
 		if(dispatch.game.inventory.getTotalAmount(boxEvent.id) > 0)
 		{
-			if(gacha_detected)
+			boxEvent.loc = location.loc;
+			boxEvent.w = location.w;
+			dispatch.toServer('C_USE_ITEM', 3, boxEvent);
+			if(useDelay)
 			{
-				if(dispatch.majorPatchVersion >= 99)
-				{
-					dispatch.toServer('C_GACHA_TRY', 2,{
-						id:gacha_contract,
-						amount: 1
-					});
-				}
-				else
-				{
-					dispatch.toServer('C_GACHA_TRY', 1,{
-						id:gacha_contract
-					});
-				}
+				statUsed++;	// counter for used items other than boxes
 			}
-			else {
-				boxEvent.loc = location.loc;
-				boxEvent.w = location.w;
-				dispatch.toServer('C_USE_ITEM', 3, boxEvent);
-				if(useDelay)
-				{
-					statUsed++;	// counter for used items other than boxes
-				}
-				timer = dispatch.setTimeout(openBox,delay);
-			}
-			statOpened++;
+			timer = setTimeout(openBox,delay);
 		}
 		else
 		{
@@ -217,14 +191,14 @@ module.exports = function boxOpener(dispatch){
 		}
 		else
 		{
-			if(gacha_detected && gacha_contract) dispatch.toServer('C_GACHA_CANCEL', 1, { id: gacha_contract });
-			if(useDelay && statOpened === 0) statOpened = statUsed;
-			if(!gacha_detected) statOpened += 1; // Add the box we used at start if not gacha.
-			dispatch.clearTimeout(timer);
+			clearTimeout(timer);
 			enabled = false;
 			gacha_detected = false;
-			gacha_contract = 0;
 			boxEvent = null;
+			if(useDelay && statOpened == 0)
+			{
+				statOpened = statUsed;
+			}
 			let d = new Date();
 			let t = d.getTime();
 			let timeElapsedMSec = t-statStarted;

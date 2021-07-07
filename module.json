@@ -1,5 +1,5 @@
 {
-	"disableAutoUpdate": false,
+	"disableAutoUpdate": true,
 	"name": "generic-box-opener-item-user",
 	"author": "Owyn",
 	"description": "Mass-Opens boxes",
